@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>ZIP文件上传</title>
-    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <h1>上传ZIP文件</h1>
@@ -17,11 +16,12 @@
             const messageEl = document.getElementById('message');
             const file = fileInput.files[0];
 
-            // TODO: 替换为你的信息
-            const owner = 'oi-avic'; // 你的GitHub用户名
-            const repo = 'oi-avic/up-zip'; // 你的仓库名称
-            const token = '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'; // 你刚刚生成的Token
-            const path = `uploads/${file.name}`; // 文件在仓库中的保存路径
+            // TODO: 如果你仍在前端测试，可以临时填入 token（不推荐在公开仓库或线上环境使用）
+            const owner = 'oi-avic';
+            const repo = 'up-zip'; // 只写仓库名，不要写 owner/repo 两次
+            const token = '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
+'; // 建议在本地临时使用并尽快撤销/旋转
+            const path = `uploads/${file.name}`;
 
             if (!file) {
                 messageEl.textContent = '请选择一个文件。';
@@ -29,28 +29,48 @@
             }
 
             try {
-                // 1. 获取文件内容，并编码为base64
-                const fileContentBase64 = await readFileAsBase64(file);
+                const contentBase64 = await readFileAsBase64(file);
+                const headers = {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/vnd.github+json',
+                    'Content-Type': 'application/json',
+                };
 
-                // 2. 调用GitHub API创建文件
-                const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+                // 先查询是否存在以获取 sha（如果存在需要在 PUT 中带 sha 来更新）
+                const getUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`;
+                const getResp = await fetch(getUrl, { method: 'GET', headers });
+                let body = {
+                    message: `上传ZIP文件: ${file.name}`,
+                    content: contentBase64,
+                };
+
+                if (getResp.ok) {
+                    const existing = await getResp.json();
+                    if (existing && existing.sha) {
+                        body.sha = existing.sha;
+                    }
+                } else {
+                    // 如果不是 404，打印错误信息以便诊断（401 -> Bad credentials）
+                    if (getResp.status !== 404) {
+                        const err = await getResp.json().catch(() => ({}));
+                        messageEl.textContent = `上传前检查失败：${getResp.status} ${err.message || ''}`;
+                        return;
+                    }
+                }
+
+                // 创建或更新文件
+                const putUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`;
+                const putResp = await fetch(putUrl, {
                     method: 'PUT',
-                    headers: {
-                        'Authorization': `token ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        message: `上传ZIP文件: ${file.name}`, // 提交信息
-                        content: fileContentBase64, // 文件内容，base64编码
-                    })
+                    headers,
+                    body: JSON.stringify(body)
                 });
 
-                const result = await response.json();
-
-                if (response.ok) {
+                const result = await putResp.json();
+                if (putResp.ok) {
                     messageEl.textContent = `文件上传成功！`;
                 } else {
-                    messageEl.textContent = `上传失败：${result.message}`;
+                    messageEl.textContent = `上传失败：${result.message || JSON.stringify(result)}`;
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -58,13 +78,11 @@
             }
         }
 
-        // 辅助函数：将文件读取为Base64字符串
         function readFileAsBase64(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
                 reader.onload = () => {
-                    // 移除Data URL前缀（如"data:application/zip;base64,"）
                     const base64 = reader.result.split(',')[1];
                     resolve(base64);
                 };
