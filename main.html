@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>ZIP文件上传</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <h1>上传ZIP文件</h1>
+    <input type="file" id="zipFile" accept=".zip" />
+    <button onclick="uploadFile()">上传</button>
+    <p id="message"></p>
+
+    <script>
+        async function uploadFile() {
+            const fileInput = document.getElementById('zipFile');
+            const messageEl = document.getElementById('message');
+            const file = fileInput.files[0];
+
+            // TODO: 替换为你的信息
+            const owner = '你的GitHub用户名'; // 你的GitHub用户名
+            const repo = '你的仓库名'; // 你的仓库名称
+            const token = '你的个人访问令牌'; // 你刚刚生成的Token
+            const path = `uploads/${file.name}`; // 文件在仓库中的保存路径
+
+            if (!file) {
+                messageEl.textContent = '请选择一个文件。';
+                return;
+            }
+
+            try {
+                // 1. 获取文件内容，并编码为base64
+                const fileContentBase64 = await readFileAsBase64(file);
+
+                // 2. 调用GitHub API创建文件
+                const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: `上传ZIP文件: ${file.name}`, // 提交信息
+                        content: fileContentBase64, // 文件内容，base64编码
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    messageEl.textContent = `文件上传成功！`;
+                } else {
+                    messageEl.textContent = `上传失败：${result.message}`;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                messageEl.textContent = '发生了一个错误。';
+            }
+        }
+
+        // 辅助函数：将文件读取为Base64字符串
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => {
+                    // 移除Data URL前缀（如"data:application/zip;base64,"）
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = error => reject(error);
+            });
+        }
+    </script>
+</body>
+</html>
