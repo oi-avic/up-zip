@@ -16,10 +16,9 @@
 <body>
   <h1>up-zip — 上传 ZIP 文件</h1>
 
-  <p class="note">说明：此演示会把 ZIP 文件以 base64 放入仓库 issue 的 body 中。随后仓库中的 GitHub Action 会在 issue 打开时处理该内容并把文件写入 <code>uploads/</code> 目录并提交到仓库。Action 使用内置的 <code>GITHUB_TOKEN</code> 来提交，因此无需在后端保存高权限凭据。</p>
 
-  <label for="token">GitHub Personal Access Token（用于创建 issue。建议在测试完后立即撤销或旋转）：</label><br/>
-  <input id="token" class="token" placeholder="在此粘贴你的 token（本地/测试使用）" />
+  <label for="token">GitHub Personal Access Token（用于创建 issue。）：</label><br/>
+  <input id="token" class="token" placeholder="在此粘贴你的 token" />
 
   <p>
     <input type="file" id="zipFile" accept=".zip" />
@@ -27,13 +26,6 @@
   </p>
 
   <p id="message" class="message"></p>
-
-  <h2>格式说明（调试）</h2>
-  <p>Action 期望 issue.body 为 JSON，例如：</p>
-  <pre>{
-  "path": "uploads/example.zip",
-  "content": "<base64-content>"
-}</pre>
 
   <script>
     async function readFileAsBase64(file) {
